@@ -90,6 +90,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8afb450f006bf6385ca15ef45d71d2288452bc3683ce2e2cacc0d18e4be60b58"
 
 [[package]]
+name = "portal-trait-transformer"
+version = "0.0.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+ "tokio",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.70"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -132,16 +142,6 @@ checksum = "841d45b238a16291a4e1584e61820b8ae57d696cc5015c459c229ccc6990cc1c"
 dependencies = [
  "backtrace",
  "pin-project-lite",
-]
-
-[[package]]
-name = "trait-transformer"
-version = "0.0.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
- "tokio",
 ]
 
 [[package]]
