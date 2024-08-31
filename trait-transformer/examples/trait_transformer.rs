@@ -13,7 +13,7 @@ use std::iter;
 
 use trait_transformer::trait_transformer;
 
-#[trait_transformer(SendIntFactory: Send)]
+#[trait_transformer(SendIntFactory: Send )]
 trait IntFactory {
     async fn make(&self) -> i32;
     // ..or..
@@ -42,7 +42,7 @@ impl IntFactory for MyFactory {
         0
     }
 }
-impl SendIntFactory for MyFactory {}
+// impl SendIntFactory for MyFactory {}
 
 fn main() {
     let my_factory = MyFactory;

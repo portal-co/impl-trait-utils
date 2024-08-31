@@ -7,14 +7,14 @@
 // except according to those terms.
 
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input,
     punctuated::Punctuated,
     token::Comma,
-    Ident, ItemTrait, Path, Result, ReturnType, Token, TraitBound, TraitBoundModifier, TraitItem,
-    Type,
+    AngleBracketedGenericArguments, Ident, ItemImpl, ItemTrait, Path, PathSegment, Result,
+    ReturnType, Token, TraitBound, TraitBoundModifier, TraitItem, Type, TypeParam,
 };
 
 struct Attrs {
@@ -81,7 +81,7 @@ fn transform_trait(attrs: &Attrs, tr: &ItemTrait) -> TokenStream {
 
                         if is_async || returns_impl_trait {
                             let name = &item_fn.sig.ident;
-                            return Some(quote! { #name(): #subtrait });
+                            return Some(quote! { #name(..): #subtrait });
                         }
                     }
                     _ => (),
@@ -93,25 +93,75 @@ fn transform_trait(attrs: &Attrs, tr: &ItemTrait) -> TokenStream {
             let supertrait = syn::TypeParamBound::Verbatim(quote! {
                 #tr_ident<#(#fn_bounds),*>
             });
-
-            ItemTrait {
+            let bounds = Punctuated::from_iter(
+                vec![
+                    supertrait,
+                    syn::TypeParamBound::Trait(TraitBound {
+                        paren_token: None,
+                        modifier: TraitBoundModifier::None,
+                        lifetimes: None,
+                        path: attr.subtrait.clone(),
+                    }),
+                ]
+                .into_iter(),
+            );
+            let trai = ItemTrait {
                 attrs: Vec::new(),
                 ident: attr.subtrait_name.clone(),
                 items: Vec::new(),
-                supertraits: Punctuated::from_iter(
-                    vec![
-                        supertrait,
-                        syn::TypeParamBound::Trait(TraitBound {
-                            paren_token: None,
-                            modifier: TraitBoundModifier::None,
-                            lifetimes: None,
-                            path: attr.subtrait.clone(),
-                        }),
-                    ]
+                supertraits: bounds.clone(),
+                ..tr.clone()
+            };
+            // match attr.auto {
+            //     None => quote! {
+            //         #trai
+            //     },
+            //     Some(_) => {
+            let mut g = tr.generics.clone();
+            g.params.push(syn::GenericParam::Type(TypeParam {
+                attrs: Vec::new(),
+                ident: format_ident!("__WSelf"),
+                colon_token: None,
+                bounds: bounds,
+                eq_token: None,
+                default: None,
+            }));
+            let (a, b, c) = tr.generics.split_for_impl();
+            let mut path: Path = Path {
+                leading_colon: None,
+                segments: Punctuated::from_iter(
+                    vec![PathSegment {
+                        ident: attr.subtrait_name.clone(),
+                        arguments: syn::PathArguments::AngleBracketed(
+                            syn::parse2(quote! {
+                                <#b>
+                            })
+                            .unwrap(),
+                        ),
+                    }]
                     .into_iter(),
                 ),
-                ..tr.clone()
+            };
+            let imple = ItemImpl {
+                attrs: Vec::new(),
+                defaultness: None,
+                unsafety: tr.unsafety.clone(),
+                impl_token: Default::default(),
+                generics: g,
+                trait_: Some((None, path, Default::default())),
+                self_ty: Box::new(Type::Path(syn::TypePath {
+                    qself: None,
+                    path: format_ident!("__WSelf").into(),
+                })),
+                brace_token: Default::default(),
+                items: vec![],
+            };
+            quote! {
+                #trai
+                #imple
             }
+
+            // }
         })
         .collect::<Vec<_>>();
 
